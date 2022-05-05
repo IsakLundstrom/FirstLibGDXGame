@@ -15,15 +15,13 @@ public class FirstGame extends ApplicationAdapter {
 	private ShapeRenderer shapeRenderer;
 	private Vector3 touchPos;
 
-	private Vector2 playerPosition;
-	private Vector2 velocity;
-	private Vector2 acceleration;
+	private Vector2 playerPos;
+	private Vector2 playerVel;
+	private Vector2 playerAcc;
 
 	private int playerRadius = 64;
-
-	private int accelerationWeight = 1;
-	private int accelerationFriction = 1;
-
+	private int playerAccConstant = 1000; //Higher is slower
+	private int playerAccFriction = 50; //Higher is less friction
 	
 	@Override
 	public void create () {
@@ -33,9 +31,9 @@ public class FirstGame extends ApplicationAdapter {
 
 		touchPos = new Vector3(0, 0, 0);
 
-		playerPosition = new Vector2(Gdx.graphics.getWidth()/2, Gdx.graphics.getHeight()/2);
-		velocity = new Vector2(0,0);
-		acceleration = new Vector2(0,0);
+		playerPos = new Vector2(Gdx.graphics.getWidth()/2, Gdx.graphics.getHeight()/2);
+		playerVel = new Vector2(0,0);
+		playerAcc = new Vector2(0,0);
 
 	}
 
@@ -47,21 +45,24 @@ public class FirstGame extends ApplicationAdapter {
 		if(Gdx.input.isTouched()) {
 			touchPos.set(Gdx.input.getX(), Gdx.input.getY(), 0);
 
-			acceleration.set((Gdx.input.getX() - playerPosition.x) / 10000, (Gdx.graphics.getHeight() - Gdx.input.getY() - playerPosition.y)/10000);
-
-//			velocity.set(velocity.x + acceleration.x, velocity.y + acceleration.y, 0);
-
+			//Move player towards touchPos
+			playerAcc.set((touchPos.x - playerPos.x) / playerAccConstant,
+					(Gdx.graphics.getHeight() - touchPos.y - playerPos.y)/ playerAccConstant);
+			playerVel.set(playerVel.x + playerAcc.x, playerVel.y + playerAcc.y);
+			playerPos.set(playerPos.x + playerVel.x, playerPos.y + playerVel.y);
+			
 			camera.unproject(touchPos);
 		}
-		else {
-//			velocity.set(velocity.x - accelerationFriction, velocity.y - accelerationFriction, 0);
-			acceleration.set(-velocity.x/100, -velocity.y/100);
-		}
-		velocity.set(velocity.x + acceleration.x, velocity.y + acceleration.y);
-		playerPosition.set(playerPosition.x + velocity.x, playerPosition.y + velocity.y);
+		//Friction
+		playerAcc.set(-playerVel.x/playerAccFriction, -playerVel.y/playerAccFriction);
+		playerVel.set(playerVel.x + playerAcc.x, playerVel.y + playerAcc.y);
+		playerPos.set(playerPos.x + playerVel.x, playerPos.y + playerVel.y);
 
-		//Check walls
-//		if(playerPosition)
+		//Check walls for player, bounce if hit
+		if(playerPos.x + playerRadius > Gdx.graphics.getWidth() || playerPos.x - playerRadius < 0)
+			playerVel.set(-playerVel.x, playerVel.y);
+		if(playerPos.y + playerRadius > Gdx.graphics.getHeight() || playerPos.y - playerRadius < 0)
+			playerVel.set(playerVel.x, -playerVel.y);
 
 		//Drawing
 		Gdx.gl.glClearColor(1,1,1,1);
@@ -70,7 +71,7 @@ public class FirstGame extends ApplicationAdapter {
 		//Draw moving circle
 		shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 		shapeRenderer.setColor(Color.BLUE);
-		shapeRenderer.circle(playerPosition.x, playerPosition.y, playerRadius);
+		shapeRenderer.circle(playerPos.x, playerPos.y, playerRadius);
 
 
 		if(Gdx.input.isTouched()) {
@@ -81,7 +82,7 @@ public class FirstGame extends ApplicationAdapter {
 
 			//Draw line between circle and mouse
 			shapeRenderer.setColor(Color.BLACK);
-			shapeRenderer.line(touchPos.x, touchPos.y, playerPosition.x, playerPosition.y);
+			shapeRenderer.line(touchPos.x, touchPos.y, playerPos.x, playerPos.y);
 
 			//Werid
 //			shapeRenderer.setColor(Color.ORANGE);
