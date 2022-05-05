@@ -2,18 +2,28 @@ package com.isak.main;
 
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.assets.AssetManager;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Sprite;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
+
+import javax.swing.SpringLayout;
 
 public class FirstGame extends ApplicationAdapter {
 
 	private OrthographicCamera camera;
 	private ShapeRenderer shapeRenderer;
 	private Vector3 touchPos;
+	private AssetManager assetManager;
+	private Texture ratgeTexture;
+	private Sprite ratgeSprite;
+	private SpriteBatch batch;
 
 	private Vector2 playerPos;
 	private Vector2 playerVel;
@@ -22,12 +32,26 @@ public class FirstGame extends ApplicationAdapter {
 	private int playerRadius = 64;
 	private int playerAccConstant = 1000; //Higher is slower
 	private int playerAccFriction = 50; //Higher is less friction
+
+
+
 	
 	@Override
 	public void create () {
 		shapeRenderer = new ShapeRenderer();
 		camera = new OrthographicCamera();
 		camera.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+
+		assetManager = new AssetManager();
+		assetManager.load("ratge.png", Texture.class);
+		assetManager.finishLoading();
+
+		batch = new SpriteBatch();
+		//ratgeTexture = assetManager.get("ratge.png");
+		ratgeTexture = new Texture(Gdx.files.internal("ratge.png"));
+		ratgeSprite = new Sprite(ratgeTexture);
+		ratgeSprite.setPosition(Gdx.graphics.getWidth()/2 - ratgeSprite.getWidth()/2,
+				Gdx.graphics.getHeight()/2 - ratgeSprite.getHeight()/2);
 
 		touchPos = new Vector3(0, 0, 0);
 
@@ -94,6 +118,13 @@ public class FirstGame extends ApplicationAdapter {
 
 
 		shapeRenderer.end();
+
+		ratgeSprite.setPosition(playerPos.x - ratgeSprite.getWidth()/2,
+				playerPos.y - ratgeSprite.getHeight()/2);
+
+		batch.begin();
+		ratgeSprite.draw(batch);
+		batch.end();
 	}
 	
 	@Override
