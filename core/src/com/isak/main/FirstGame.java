@@ -33,8 +33,8 @@ public class FirstGame extends ApplicationAdapter {
 	private Vector3 touchPos;
 	private Sprite touchSprite;
 
-	final private int touchImageSize = 128;
-	final private String touchImagePath = "cucumber.png";
+	final private int touchImageSize = 100;
+	final private String touchImagePath = "cucumber-pixel.png";
 
 	//Player variables
 	private Vector2 playerPos;
@@ -46,27 +46,21 @@ public class FirstGame extends ApplicationAdapter {
 	final private int playerRadius = 64;
 	final private int playerAccConstant = 200; //Higher is slower
 	final private int playerAccFriction = 50; //Higher is less friction
-	final private String playerImagePath = "ratge.png";
+	final private String playerImagePath = "ratge-pixel.png";
 
 	//Enemy variables
-	private Array<Vector2> enemyPos;
-	private Array<Vector2> enemyVel;
-	private Texture enemyTexture;
-	private Array<Sprite> enemySprite;
-	private Array<Circle> enemyCollision;
-
 	private int enemyRadius = 64;
-	final private String enemyImagePath = "clown.png";
+	final private String enemyImagePath = "clown-pixel.png";
+
+	EnemySpawner enemySpawner;
 
 	//Game variables
 	private int score = 0;
 	private int highScore = 0;
 	final private float enemyStartSpeed = 4;
-	private float currentEnemySpeed = enemyStartSpeed;
 	private float enemySpeedIncrease = 0.1f;
 	final private float enemyMaxSpeed = 10f;
 	private int maxNumberEnemies = 5;
-	private int currentNumberEnemies = 0;
 	private boolean isPlayerAlive = true;
 
 	@Override
@@ -84,7 +78,9 @@ public class FirstGame extends ApplicationAdapter {
 		resetButtonSetup();
 		touchSetup();
 		playerSetup();
-		enemySetup();
+
+		enemySpawner = new EnemySpawner(enemyStartSpeed, enemySpeedIncrease, enemyMaxSpeed,
+				maxNumberEnemies, enemyRadius, enemyImagePath);
 	}
 
 	private void resetButtonSetup() {
@@ -112,23 +108,14 @@ public class FirstGame extends ApplicationAdapter {
 		playerVel.set(0,0);
 		playerAcc.set(0,0);
 		playerSprite.setRotation(0);
-		for (int enemy = enemyPos.size - 1; enemy >= 0; enemy--){
-			enemyPos.pop();
-			enemyVel.pop();
-			enemySprite.pop();
-			enemyCollision.pop();
+
+		for (int enemy = enemySpawner.getCurrentNumberEnemies() - 1; enemy >= 0; enemy--){
+			enemySpawner.despawnEnemy(enemy);
+			enemySpawner.setCurrentEnemySpeed(enemySpawner.getEnemyStartSpeed());
 		}
 		currentNumberEnemies = 0;
 		currentEnemySpeed = enemyStartSpeed;
 		score = 0;
-	}
-
-	private void enemySetup() {
-		enemyPos = new Array<>();
-		enemyVel = new Array<>();
-		enemyTexture = new Texture(Gdx.files.internal(enemyImagePath));
-		enemySprite = new Array<>();
-		enemyCollision = new Array<>();
 	}
 
 	private void touchSetup() {
@@ -167,14 +154,16 @@ public class FirstGame extends ApplicationAdapter {
 		camera.unproject(touchPos);
 
 		//Check if enemies should spawn
-		while(currentNumberEnemies < maxNumberEnemies){
-			spawnEnemy();
+		while(enemySpawner.getCurrentNumberEnemies() < enemySpawner.getMaxNumberEnemies()){
+//			spawnEnemy();
+			enemySpawner.spawnEnemy();
 		}
 		if (isPlayerAlive) {
 			playerMovement();
-			enemyMovement();
+			enemySpawner.moveEnemies();
 		}
-		checkEnemyDespawn();
+//		checkEnemyDespawn();
+		enemySpawner.checkEnemyDespawn();
 		checkPlayerEnemyCollision();
 		bouncePlayerOnWallHit();
 
@@ -185,7 +174,16 @@ public class FirstGame extends ApplicationAdapter {
 
 		if (isPlayerAlive) drawTouch();
 		drawPlayer();
-		drawEnemies();
+		enemySpawner.drawEnemies();
+
+		//Draw enemies colliders
+		shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+		for (int enemy = enemySpawner.getCurrentNumberEnemies() - 1; enemy >= 0; enemy--){
+			shapeRenderer.setColor(Color.GREEN);
+			shapeRenderer.circle(enemySpawner.getEnemy(enemy).getPos().x,
+					enemySpawner.getEnemy(enemy).getPos().y, enemyRadius);
+		}
+		shapeRenderer.end();
 
 		if (!isPlayerAlive){
 			drawResetButton();
@@ -211,25 +209,6 @@ public class FirstGame extends ApplicationAdapter {
 		shapeRenderer.end();
 		Gdx.gl.glDisable(GL20.GL_BLEND);
 		stage.draw();
-	}
-
-	private void drawEnemies() {
-		//enemy
-		batch.begin();
-		for (int enemy = enemyPos.size - 1; enemy >= 0; enemy--){
-			enemySprite.get(enemy).setPosition(enemyPos.get(enemy).x - enemyRadius,
-					enemyPos.get(enemy).y - enemyRadius);
-			enemySprite.get(enemy).draw(batch);
-		}
-		batch.end();
-
-		//Draw enemies colliders
-//		shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
-//		for (int enemy = enemyPos.size - 1; enemy >= 0; enemy--){
-//			shapeRenderer.setColor(Color.GREEN);
-//			shapeRenderer.circle(enemyPos.get(enemy).x, enemyPos.get(enemy).y, enemyCollision.get(enemy).radius);
-//		}
-//		shapeRenderer.end();
 	}
 
 	private void drawPlayer() {
@@ -278,90 +257,15 @@ public class FirstGame extends ApplicationAdapter {
 
 	private void checkPlayerEnemyCollision() {
 		boolean isColliding;
-		for (int enemy = enemyPos.size - 1; enemy >= 0; enemy--){
-			isColliding = playerCollision.overlaps(enemyCollision.get(enemy));
+//		System.out.println(enemySpawner.getCurrentNumberEnemies());
+		for (int enemy = enemySpawner.getCurrentNumberEnemies() - 1; enemy >= 0; enemy--){
+//			isColliding = playerCollision.overlaps(enemyCollision.get(enemy));
+			isColliding = playerCollision.overlaps(enemySpawner.getEnemy(enemy).getCollision());
 			if(isColliding) {
 				isPlayerAlive = false;
 				stage.addActor(button);
 			}
 		}
-	}
-
-	private void checkEnemyDespawn() {
-		for (int enemy = enemyPos.size - 1; enemy >= 0; enemy--){
-			//If outside screen => remove enemy
-			if(enemyPos.get(enemy).x > Gdx.graphics.getWidth() + 1.1*enemyRadius ||
-					enemyPos.get(enemy).x < -1.1*enemyRadius ||
-					enemyPos.get(enemy).y > Gdx.graphics.getHeight() + 1.1*enemyRadius ||
-					enemyPos.get(enemy).y < -1.1*enemyRadius){
-				enemyPos.removeIndex(enemy);
-				enemyVel.removeIndex(enemy);
-				enemySprite.removeIndex(enemy);
-				enemyCollision.removeIndex(enemy);
-				currentNumberEnemies--;
-				if(currentEnemySpeed < enemyMaxSpeed) currentEnemySpeed += enemySpeedIncrease;
-			}
-		}
-	}
-
-	private void enemyMovement() {
-		for (int enemy = enemyPos.size - 1; enemy >= 0; enemy--){
-			enemyPos.get(enemy).set(enemyPos.get(enemy).x + enemyVel.get(enemy).x,
-					enemyPos.get(enemy).y + enemyVel.get(enemy).y);
-			//Move collision with enemy
-			enemyCollision.get(enemy).setPosition(enemyPos.get(enemy));
-		}
-	}
-
-	private void spawnEnemy() {
-		currentNumberEnemies++;
-		//#Position
-		float enemyStartPosX, enemyStartPosY;
-		//Determine if enemy start above, below, right or left
-		if(MathUtils.random() > 0.5) { //Spawns above or below
-			enemyStartPosX = MathUtils.random() * Gdx.graphics.getWidth();
-			if(MathUtils.random() > 0.5) { //Spawns above
-				enemyStartPosY = Gdx.graphics.getHeight() + enemyRadius;
-			}
-			else { //Spawns below
-				enemyStartPosY = -enemyRadius;
-			}
-		}
-		else { //Spawns right or left
-			enemyStartPosY = MathUtils.random() * Gdx.graphics.getHeight();
-			if(MathUtils.random() > 0.5) { //Spawns right
-				enemyStartPosX = Gdx.graphics.getWidth() + enemyRadius;
-			}
-			else { //Spawns left
-				enemyStartPosX = -enemyRadius;
-			}
-		}
-		enemyPos.add(new Vector2(enemyStartPosX, enemyStartPosY));
-
-		//#Velocity
-		//Angle the enemy towards the center
-		float angle = MathUtils.atan2(Gdx.graphics.getHeight()/2f - enemyStartPosY,
-				Gdx.graphics.getWidth()/2f - enemyStartPosX);
-		angle += MathUtils.random(-1f, 1f) * MathUtils.PI/2; // add some randomness
-//		angle += MathUtils.PI/8; // comment above, uncomment for a nice effect
-		float enemyVelX = currentEnemySpeed * MathUtils.cos(angle) + MathUtils.random(-0.5f, 0.5f);
-		float enemyVelY = currentEnemySpeed * MathUtils.sin(angle) + MathUtils.random(-0.5f, 0.5f);
-		enemyVel.add(new Vector2(enemyVelX, enemyVelY));
-
-		//#Sprite
-		int newestEnemy = enemyPos.size-1;
-		enemySprite.add(new Sprite(enemyTexture));
-		enemySprite.get(newestEnemy).setSize(2*enemyRadius, 2*enemyRadius);
-		float enemySpritePosX = enemyStartPosX - enemyRadius;
-		float enemySpritePosY = enemyStartPosY - enemyRadius;
-		enemySprite.get(newestEnemy).setPosition(enemySpritePosX, enemySpritePosY);
-
-		//#Rotation
-		enemySprite.get(newestEnemy).setOrigin(enemyRadius, enemyRadius);
-		enemySprite.get(newestEnemy).setRotation(angle/MathUtils.PI2*360 - 90);
-
-		//#Collision
-		enemyCollision.add(new Circle(enemyStartPosX, enemyStartPosY, enemyRadius));
 	}
 
 	private void bouncePlayerOnWallHit() {
