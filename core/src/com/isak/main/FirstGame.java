@@ -113,8 +113,6 @@ public class FirstGame extends ApplicationAdapter {
 			enemySpawner.despawnEnemy(enemy);
 			enemySpawner.setCurrentEnemySpeed(enemySpawner.getEnemyStartSpeed());
 		}
-		currentNumberEnemies = 0;
-		currentEnemySpeed = enemyStartSpeed;
 		score = 0;
 	}
 
