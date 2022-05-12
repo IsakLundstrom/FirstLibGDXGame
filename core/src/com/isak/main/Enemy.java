@@ -1,38 +1,28 @@
 package com.isak.main;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Circle;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
-import com.badlogic.gdx.utils.Array;
 
 public class Enemy {
 
-    private Vector2 pos;
-    private Vector2 vel;
-    private Texture texture;
-    private Sprite sprite;
-    private Circle collision;
+    private Vector2 enemyPos;
+    private Vector2 enemyVel;
+    private Texture enemyTexture;
+    private Sprite enemySprite;
+    private Circle enemyCollision;
 
-    private int radius;
-    private String imagePath;
+    private int enemyRadius;
+    private String enemyImagePath;
 
     private SpriteBatch batch;
-
-    /**
-     * Constructor for an enemy with default radius (64px) and image path ("clown-pixel.png")
-     * @param pos Starting position in pixels
-     * @param vel Starting velocity
-     */
-    public Enemy(Vector2 pos, Vector2 vel){
-        batch = new SpriteBatch();
-        radius = 64;
-        imagePath = "clown-pixel.png";
-        setup(pos, vel, radius, imagePath);
-    }
+    private ShapeRenderer shapeRenderer;
 
     /**
      * Constructor for an enemy
@@ -42,47 +32,57 @@ public class Enemy {
      * @param imagePath Path to the image
      */
     public Enemy(Vector2 pos, Vector2 vel, int radius, String imagePath){
+        this.enemyPos = pos;
+        this.enemyVel = vel;
+        this.enemyRadius = radius;
+        this.enemyImagePath = imagePath;
         batch = new SpriteBatch();
-        setup(pos, vel, radius, imagePath);
+        shapeRenderer = new ShapeRenderer();
+        setup();
     }
 
-    private void setup(Vector2 pos, Vector2 vel, int radius, String imagePath) {
-        this.pos = pos;
-        this.vel = vel;
-        this.radius = radius;
-        this.imagePath = imagePath;
-        texture = new Texture(Gdx.files.internal(imagePath));
-        sprite = new Sprite(texture);
-        sprite.setSize(2*radius, 2*radius);
-        sprite.setOrigin(radius, radius);
-        float angle = MathUtils.atan2(vel.y, vel.x);
-        sprite.setRotation(angle/ MathUtils.PI2*360 - 90);
-        collision = new Circle(pos.x, pos.y, radius);
+    private void setup() {
+        enemyTexture = new Texture(Gdx.files.internal(enemyImagePath));
+        enemySprite = new Sprite(enemyTexture);
+        enemySprite.setSize(2* enemyRadius, 2* enemyRadius);
+        enemySprite.setPosition(enemyPos.x - enemyRadius, enemyPos.y - enemyRadius);
+        enemySprite.setOrigin(enemyRadius, enemyRadius);
+        float angle = MathUtils.atan2(enemyVel.y, enemyVel.x);
+        enemySprite.setRotation(angle/ MathUtils.PI2*360 - 90);
+        enemyCollision = new Circle(enemyPos.x, enemyPos.y, enemyRadius);
     }
 
     /**
      * Move the enemy position, collision circle and sprite
      */
     public void movement(){
-        pos.set(pos.x + vel.x, pos.y + vel.y);
-        collision.setPosition(pos);
-        sprite.setPosition(pos.x - radius, pos.y - radius);
+        enemyPos.set(enemyPos.x + enemyVel.x, enemyPos.y + enemyVel.y);
+        enemyCollision.setPosition(enemyPos);
+        enemySprite.setPosition(enemyPos.x - enemyRadius, enemyPos.y - enemyRadius);
     }
 
     /**
-     * Draw the enemy sprite using SpriteBatch
+     * Render the enemy sprite using SpriteBatch
      */
     public void render(){
         batch.begin();
-        sprite.draw(batch);
+        enemySprite.draw(batch);
         batch.end();
     }
 
-    public Vector2 getPos() {
-        return pos;
+    public void drawCollider(){
+        //Draw enemies colliders
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        shapeRenderer.setColor(Color.GREEN);
+        shapeRenderer.circle(enemyPos.x, enemyPos.y, enemyRadius);
+        shapeRenderer.end();
     }
 
-    public Circle getCollision() {
-        return collision;
+    public Vector2 getEnemyPos() {
+        return enemyPos;
+    }
+
+    public Circle getEnemyCollision() {
+        return enemyCollision;
     }
 }

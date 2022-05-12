@@ -7,18 +7,16 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
-import com.badlogic.gdx.math.Circle;
-import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.InputListener;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
-import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 
 public class FirstGame extends ApplicationAdapter {
@@ -28,31 +26,25 @@ public class FirstGame extends ApplicationAdapter {
 	private Stage stage;
 	private BitmapFont font;
 	private TextButton button;
+	private GlyphLayout layout;
 
 	//Touch variables
-	private Vector3 touchPos;
-	private Sprite touchSprite;
-
+	private TouchElement touchElement;
 	final private int touchImageSize = 100;
 	final private String touchImagePath = "cucumber-pixel.png";
 
 	//Player variables
-	private Vector2 playerPos;
-	private Vector2 playerVel;
-	private Vector2 playerAcc;
-	private Sprite playerSprite;
-	private Circle playerCollision;
-
+	private Player player;
+	private Vector2 playerStartPos;
 	final private int playerRadius = 64;
 	final private int playerAccConstant = 200; //Higher is slower
 	final private int playerAccFriction = 50; //Higher is less friction
 	final private String playerImagePath = "ratge-pixel.png";
 
 	//Enemy variables
+	private EnemySpawner enemySpawner;
 	private int enemyRadius = 64;
 	final private String enemyImagePath = "clown-pixel.png";
-
-	EnemySpawner enemySpawner;
 
 	//Game variables
 	private int score = 0;
@@ -61,7 +53,8 @@ public class FirstGame extends ApplicationAdapter {
 	private float enemySpeedIncrease = 0.1f;
 	final private float enemyMaxSpeed = 10f;
 	private int maxNumberEnemies = 5;
-	private boolean isPlayerAlive = true;
+	private boolean isPlayerAlive = false;
+	private boolean hasPlayerDiedOnes = false;
 
 	@Override
 	public void create () {
@@ -75,22 +68,28 @@ public class FirstGame extends ApplicationAdapter {
 		font = new BitmapFont();
 		font.getData().setScale(Gdx.graphics.getWidth()/600f);
 
-		resetButtonSetup();
-		touchSetup();
-		playerSetup();
+		layout = new GlyphLayout();
+
+		startAndResetButtonSetup();
+		touchElement = new TouchElement(touchImageSize, touchImagePath);
+
+		playerStartPos = new Vector2(Gdx.graphics.getWidth()/2f, Gdx.graphics.getHeight()/2f);
+		player = new Player(playerStartPos, playerRadius, playerAccConstant,
+				playerAccFriction, playerImagePath);
 
 		enemySpawner = new EnemySpawner(enemyStartSpeed, enemySpeedIncrease, enemyMaxSpeed,
 				maxNumberEnemies, enemyRadius, enemyImagePath);
 	}
 
-	private void resetButtonSetup() {
+	private void startAndResetButtonSetup() {
 		TextButton.TextButtonStyle textButtonStyle = new TextButton.TextButtonStyle();
 		textButtonStyle.font = font;
 		textButtonStyle.fontColor = Color.WHITE;
 		textButtonStyle.downFontColor= Color.BLUE;
-		button = new TextButton("Restart?", textButtonStyle);
+		button = new TextButton("Start Game", textButtonStyle);
 		button.setSize(200, 100);
-		button.setPosition(Gdx.graphics.getWidth()/2f - button.getWidth()/2, Gdx.graphics.getHeight()/2f - button.getHeight()/2);
+		button.setPosition(Gdx.graphics.getWidth()/2f - button.getWidth()/2,
+				Gdx.graphics.getHeight()/3.5f - button.getHeight()/2);
 		button.addListener(new InputListener() {
 			public boolean touchDown (InputEvent event, float x, float y, int pointer, int button) {
 				return true;
@@ -100,47 +99,14 @@ public class FirstGame extends ApplicationAdapter {
 				stage.clear();
 			}
 		});
+		stage.addActor(button);
 	}
 
 	private void resetGame() {
 		isPlayerAlive = true;
-		playerPos.set(Gdx.graphics.getWidth()/2f, Gdx.graphics.getHeight()/2f);
-		playerVel.set(0,0);
-		playerAcc.set(0,0);
-		playerSprite.setRotation(0);
-
-		for (int enemy = enemySpawner.getCurrentNumberEnemies() - 1; enemy >= 0; enemy--){
-			enemySpawner.despawnEnemy(enemy);
-			enemySpawner.setCurrentEnemySpeed(enemySpawner.getEnemyStartSpeed());
-		}
+		player.reset(playerStartPos);
+		enemySpawner.resetEnemies();
 		score = 0;
-	}
-
-	private void touchSetup() {
-		touchPos = new Vector3();
-		Texture touchTexture = new Texture(Gdx.files.internal(touchImagePath));
-		touchSprite = new Sprite(touchTexture);
-		touchSprite.setSize(touchImageSize, touchImageSize);
-	}
-
-	private void playerSetup() {
-		//player position and movement setup
-		playerPos = new Vector2(Gdx.graphics.getWidth()/2f, Gdx.graphics.getHeight()/2f);
-		playerVel = new Vector2(0,0);
-		playerAcc = new Vector2(0,0);
-
-		//player sprite setup
-		Texture playerTexture = new Texture(Gdx.files.internal(playerImagePath));
-		playerSprite = new Sprite(playerTexture);
-		playerSprite.setSize(playerRadius*2, playerRadius*2);
-		float playerSpriteStartPosX = playerPos.x - playerRadius;
-		float playerSpriteStartPosY = playerPos.y - playerRadius;
-		playerSprite.setPosition(playerSpriteStartPosX, playerSpriteStartPosY);
-		playerSprite.setOrigin(playerRadius, playerRadius); //Set origin for rotation
-
-		//player collision setup
-		float playerCollisionRadius = playerRadius*0.8f;
-		playerCollision = new Circle(playerPos.x, playerPos.y, playerCollisionRadius);
 	}
 
 	@Override
@@ -148,43 +114,39 @@ public class FirstGame extends ApplicationAdapter {
 		//### Game Logic ###
 		//Camera and touch position
 		camera.update();
-		if(Gdx.input.isTouched()) touchPos.set(Gdx.input.getX(), Gdx.input.getY(), 0);
-		camera.unproject(touchPos);
+		touchElement.moveTouchPosition();
+		camera.unproject(touchElement.getTouchPos());
+		touchElement.setTouchImagePosition();
 
 		//Check if enemies should spawn
 		while(enemySpawner.getCurrentNumberEnemies() < enemySpawner.getMaxNumberEnemies()){
-//			spawnEnemy();
 			enemySpawner.spawnEnemy();
 		}
+
 		if (isPlayerAlive) {
-			playerMovement();
+			player.movement(touchElement.getTouchPos().x, touchElement.getTouchPos().y);
 			enemySpawner.moveEnemies();
 		}
-//		checkEnemyDespawn();
-		enemySpawner.checkEnemyDespawn();
+
 		checkPlayerEnemyCollision();
-		bouncePlayerOnWallHit();
+		player.checkIfHitWall();
+		enemySpawner.checkEnemyDespawn();
 
 		//### Drawing ###
 		//Background Color
 		Gdx.gl.glClearColor(119f/255f,136/255f,153f/255f,1);
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-		if (isPlayerAlive) drawTouch();
-		drawPlayer();
-		enemySpawner.drawEnemies();
-
-		//Draw enemies colliders
-		shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
-		for (int enemy = enemySpawner.getCurrentNumberEnemies() - 1; enemy >= 0; enemy--){
-			shapeRenderer.setColor(Color.GREEN);
-			shapeRenderer.circle(enemySpawner.getEnemy(enemy).getPos().x,
-					enemySpawner.getEnemy(enemy).getPos().y, enemyRadius);
-		}
-		shapeRenderer.end();
+		touchElement.drawLineBetweenTouchAndPlayer(player.getPlayerPos());
+		if (isPlayerAlive) touchElement.render();
+		player.render();
+		player.drawCollider();
+		player.drawRadius();
+		enemySpawner.renderEnemies();
+		enemySpawner.drawEnemiesColliders();
 
 		if (!isPlayerAlive){
-			drawResetButton();
+			drawStartAndResetScreen();
 		}
 		drawScore();
 		if (isPlayerAlive) score++;
@@ -192,13 +154,20 @@ public class FirstGame extends ApplicationAdapter {
 
 	private void drawScore() {
 		batch.begin();
-		font.draw(batch, "Score: " + score, 50, Gdx.graphics.getHeight() - 20);
-		font.draw(batch, "High Score: " + highScore, Gdx.graphics.getWidth() - Gdx.graphics.getWidth()/4f, Gdx.graphics.getHeight() - 20);
+		float scoreTextInsetPercentX = 0.97f;
+		float scoreTextInsetPercentY = 0.97f;
+		font.draw(batch, "Score: " + score, Gdx.graphics.getWidth()*(1 - scoreTextInsetPercentX),
+				Gdx.graphics.getHeight() * scoreTextInsetPercentY);
+		String highScoreText = "High Score: " + highScore;
+		layout.setText(font, highScoreText);
+		font.draw(batch, highScoreText, Gdx.graphics.getWidth() * scoreTextInsetPercentX - layout.width,
+				Gdx.graphics.getHeight() * scoreTextInsetPercentY);
 		batch.end();
 	}
 
-	private void drawResetButton() {
+	private void drawStartAndResetScreen() {
 		if(score > highScore) highScore = score;
+		//Create a dark background overlay
 		Gdx.gl.glEnable(GL20.GL_BLEND);
 		Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
 		shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
@@ -207,91 +176,36 @@ public class FirstGame extends ApplicationAdapter {
 		shapeRenderer.end();
 		Gdx.gl.glDisable(GL20.GL_BLEND);
 		stage.draw();
-	}
-
-	private void drawPlayer() {
-		//player sprite
-		playerSprite.setPosition(playerPos.x - playerRadius,
-				playerPos.y - playerRadius);
-
+		//If player has died ones draw reset message also
+		if (!hasPlayerDiedOnes) return;
 		batch.begin();
-		playerSprite.draw(batch);
-		if (playerVel.x != 0) {
-			float rotation = MathUtils.atan2(playerVel.y, playerVel.x) / MathUtils.PI2 * 360;
-			playerSprite.setRotation(rotation);
-		}
+		String loseText = "Ratge got caught by the clowns...";
+		font.getData().setScale(Gdx.graphics.getWidth()/500f);
+		layout.setText(font, loseText);
+		font.draw(batch, loseText, (Gdx.graphics.getWidth() - layout.width) / 2f,
+				Gdx.graphics.getHeight() / 2f  + layout.height);
+		loseText = "All he wanted was his cucumber...";
+		font.draw(batch, loseText, (Gdx.graphics.getWidth() - layout.width) / 2f,
+				Gdx.graphics.getHeight() / 2f  - layout.height);
+		font.getData().setScale(Gdx.graphics.getWidth()/600f);
 		batch.end();
-
-//		//Player radius and collision
-//		shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
-//		//radius
-//		shapeRenderer.setColor(Color.WHITE);
-//		shapeRenderer.circle(playerPos.x, playerPos.y, playerRadius);
-//
-//		//collision
-//		shapeRenderer.setColor(Color.GREEN);
-//		shapeRenderer.circle(playerPos.x, playerPos.y, playerCollision.radius);
-//		shapeRenderer.end();
-	}
-
-	private void drawTouch() {
-		if(Gdx.input.isTouched()) {
-			shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-
-			//Draw line between circle and touch
-			Color green = new Color(119f/255f,178f/255f,85f/255f,1);
-			shapeRenderer.setColor(green);
-			shapeRenderer.line(touchPos.x, touchPos.y, playerPos.x, playerPos.y);
-			shapeRenderer.end();
-
-			//Render cucumber
-			touchSprite.setPosition(touchPos.x - touchImageSize/2f,
-					touchPos.y - touchImageSize/2f);
-			batch.begin();
-			touchSprite.draw(batch);
-			batch.end();
-		}
 	}
 
 	private void checkPlayerEnemyCollision() {
 		boolean isColliding;
-//		System.out.println(enemySpawner.getCurrentNumberEnemies());
 		for (int enemy = enemySpawner.getCurrentNumberEnemies() - 1; enemy >= 0; enemy--){
-//			isColliding = playerCollision.overlaps(enemyCollision.get(enemy));
-			isColliding = playerCollision.overlaps(enemySpawner.getEnemy(enemy).getCollision());
+			isColliding = player.getPlayerCollision().overlaps(enemySpawner.getEnemy(enemy).getEnemyCollision());
 			if(isColliding) {
-				isPlayerAlive = false;
-				stage.addActor(button);
+				playerLost();
 			}
 		}
 	}
 
-	private void bouncePlayerOnWallHit() {
-		//Check walls for player, bounce if hit
-		if(playerPos.x + playerRadius > Gdx.graphics.getWidth()
-				|| playerPos.x - playerRadius < 0)
-			playerVel.set(-playerVel.x, playerVel.y);
-		if(playerPos.y + playerRadius > Gdx.graphics.getHeight()
-				|| playerPos.y - playerRadius < 0)
-			playerVel.set(playerVel.x, -playerVel.y);
-	}
-
-	private void playerMovement() {
-		if(Gdx.input.isTouched()) {
-			//Move player towards touchPos
-			playerAcc.set((touchPos.x - playerPos.x) / playerAccConstant,
-					(touchPos.y - playerPos.y)/ playerAccConstant);
-			playerVel.set(playerVel.x + playerAcc.x, playerVel.y + playerAcc.y);
-			playerPos.set(playerPos.x + playerVel.x, playerPos.y + playerVel.y);
-		}
-
-		//Add friction depending on velocity
-		playerAcc.set(-playerVel.x/playerAccFriction, -playerVel.y/playerAccFriction);
-		playerVel.set(playerVel.x + playerAcc.x, playerVel.y + playerAcc.y);
-		playerPos.set(playerPos.x + playerVel.x, playerPos.y + playerVel.y);
-
-		//Move player collision with the player
-		playerCollision.setPosition(playerPos);
+	private void playerLost() {
+		isPlayerAlive = false;
+		hasPlayerDiedOnes = true;
+		button.setText("Restart?");
+		stage.addActor(button);
 	}
 
 	@Override

@@ -1,8 +1,6 @@
 package com.isak.main;
 
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.graphics.g2d.Sprite;
-import com.badlogic.gdx.math.Circle;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
@@ -16,21 +14,28 @@ public class EnemySpawner {
     private float enemySpeedIncrease;
     private float enemyMaxSpeed;
     private int maxNumberEnemies;
-    private int currentNumberEnemies;
     private int enemyRadius;
-    private String imagePath;
+    private String enemyImagePath;
 
+    /**
+     * Constructor for a enemy spawner
+     * @param enemyStartSpeed Speed the enemies start with
+     * @param enemySpeedIncrease The increase in speed
+     * @param enemyMaxSpeed The maximum speed
+     * @param maxNumberEnemies The max number of enemies on screen
+     * @param enemyRadius Radius in pixels
+     * @param enemyImagePath Path to the image
+     */
     public EnemySpawner(float enemyStartSpeed, float enemySpeedIncrease, float enemyMaxSpeed,
-                        int maxNumberEnemies, int enemyRadius, String imagePath){
+                        int maxNumberEnemies, int enemyRadius, String enemyImagePath){
         enemies = new Array<>();
         this.enemyStartSpeed = enemyStartSpeed;
         currentEnemySpeed = enemyStartSpeed;
         this.enemySpeedIncrease = enemySpeedIncrease;
         this.enemyMaxSpeed = enemyMaxSpeed;
         this.maxNumberEnemies = maxNumberEnemies;
-        currentNumberEnemies = 0;
         this.enemyRadius = enemyRadius;
-        this.imagePath = imagePath;
+        this.enemyImagePath = enemyImagePath;
     }
 
     /**
@@ -71,60 +76,68 @@ public class EnemySpawner {
         float enemyVelY = currentEnemySpeed * MathUtils.sin(angle) + MathUtils.random(-0.5f, 0.5f);
         Vector2 startVel = new Vector2(enemyVelX, enemyVelY);
 
-        enemies.add(new Enemy(startPos, startVel, enemyRadius, imagePath));
-        currentNumberEnemies++;
-//        System.out.println("spawned");
+        enemies.add(new Enemy(startPos, startVel, enemyRadius, enemyImagePath));
     }
 
+    /**
+     * Check if enemies moved outside the screen, if they did despawn them
+     */
     public void checkEnemyDespawn(){
-        for (int enemy = currentNumberEnemies - 1; enemy >= 0; enemy--){
+        for (int enemy = enemies.size - 1; enemy >= 0; enemy--){
             //If outside screen => remove enemy
-            if(enemies.get(enemy).getPos().x > Gdx.graphics.getWidth() + 2.01*enemyRadius ||
-                    enemies.get(enemy).getPos().x < -2.01*enemyRadius ||
-                    enemies.get(enemy).getPos().y > Gdx.graphics.getHeight() + 2.01*enemyRadius ||
-                    enemies.get(enemy).getPos().y < -2.01*enemyRadius){
+            if(enemies.get(enemy).getEnemyPos().x > Gdx.graphics.getWidth() + 2.01*enemyRadius ||
+                    enemies.get(enemy).getEnemyPos().x < -2.01*enemyRadius ||
+                    enemies.get(enemy).getEnemyPos().y > Gdx.graphics.getHeight() + 2.01*enemyRadius ||
+                    enemies.get(enemy).getEnemyPos().y < -2.01*enemyRadius){
                 despawnEnemy(enemy);
                 if(currentEnemySpeed < enemyMaxSpeed) currentEnemySpeed += enemySpeedIncrease;
             }
         }
     }
 
+    /**
+     * Despawn a enemy
+     * @param i Index of the enemy to despawn
+     */
     public void despawnEnemy(int i){
         enemies.removeIndex(i);
-        currentNumberEnemies--;
     }
 
-    public void moveEnemies(){
-        for(Enemy enemy : enemies){
-            enemy.movement();
-//            System.out.println("moved");
+    /**
+     * Despawn all enemies
+     */
+    public void resetEnemies(){
+        for (int enemy = enemies.size - 1; enemy >= 0; enemy--){
+            despawnEnemy(enemy);
+            currentEnemySpeed = enemyStartSpeed;
         }
     }
 
-    public void drawEnemies(){
+    /**
+     * Move all enemies
+     */
+    public void moveEnemies(){
+        for(Enemy enemy : enemies){
+            enemy.movement();
+        }
+    }
+
+    /**
+     * Render all enemies
+     */
+    public void renderEnemies(){
         for(Enemy enemy : enemies){
             enemy.render();
         }
     }
 
-    public float getEnemyStartSpeed() {
-        return enemyStartSpeed;
-    }
-
-    public float getCurrentEnemySpeed() {
-        return currentEnemySpeed;
-    }
-
-    public void setCurrentEnemySpeed(float currentEnemySpeed) {
-        this.currentEnemySpeed = currentEnemySpeed;
-    }
-
-    public float getEnemyMaxSpeed() {
-        return enemyMaxSpeed;
-    }
-
-    public float getEnemySpeedIncrease() {
-        return enemySpeedIncrease;
+    /**
+     * Draw every enemy's collider
+     */
+    public void drawEnemiesColliders(){
+        for(Enemy enemy : enemies){
+            enemy.drawCollider();
+        }
     }
 
     public int getMaxNumberEnemies() {
@@ -132,7 +145,7 @@ public class EnemySpawner {
     }
 
     public int getCurrentNumberEnemies() {
-        return currentNumberEnemies;
+        return enemies.size;
     }
 
     public Enemy getEnemy(int i){
